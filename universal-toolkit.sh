@@ -16,7 +16,8 @@ source "$(dirname "$0")/lib/json.sh"
 
 ## ── sub‑commands ──────────────────────────────────────────────────────────
 cheatsheet() {
-  local files # shellcheck disable=SC2034
+  # shellcheck disable=SC2034 # files is used in a subshell
+  local files
   local languages loc_json="{}"
   files=$( (cd "$ROOT" && rg --files) | wc -l)
 
