@@ -7,51 +7,27 @@
 set -euo pipefail
 shopt -s globstar nullglob 2>/dev/null || true
 
-## ── helpers ────────────────────────────────────────────────────────────────
-command_exists() { command -v "$1" &>/dev/null; }
-
-# ANSI colours (honour NO_COLOR spec)
-if [[ -t 1 && -z "${NO_COLOR:-}" ]]; then
-  B=$'\033[1m'; G=$'\033[32m'; Y=$'\033[33m'; C=$'\033[36m'; R=$'\033[0m'
-else
-  B=""; G=""; Y=""; C=""; R=""
-fi
-heading() { printf "\n${B}${G}🚀 %s${R}\n" "$1"; }
-
-ROOT="${1:-$PWD}"   # allow `universal-toolkit.sh /path/to/project`
-JSON_OUT=""          # set by --json flag
-MODE="cheatsheet"    # default sub‑command
-DEPTH=2               # default tree depth
-
-## ── arg parsing ────────────────────────────────────────────────────────────
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    cheatsheet|analyze|health|cross-platform) MODE="$1";;
-    -d|--depth) DEPTH="${2:-2}"; shift;;
-    -j|--json) JSON_OUT="yes";;
-    -h|--help) MODE="help";;
-    *) ROOT="$1";;
-  esac; shift;
-done
-
-out() { # echo or build JSON
-  if [[ -n "$JSON_OUT" ]]; then printf "%s\n" "$1"; else echo -e "$1"; fi
-}
-
-json_kv() { jq -n --arg k "$1" --arg v "$2" '{($k):$v}'; }
-merge_json() { jq -s 'reduce .[] as $item ({}; . += $item)'; }
+source "$(dirname "$0")/lib/colors.sh"
+source "$(dirname "$0")/lib/json.sh"
 
 ## ── sub‑commands ──────────────────────────────────────────────────────────
 cheatsheet() {
   heading "PROJECT CHEATSHEET"
   local files lines languages loc_json="{}"
-  files=$(find "$ROOT" -type f | wc -l)
+  files=$( (cd "$ROOT" && rg --files) | wc -l)
   out "📁 Directory : $ROOT"
   out "📄 Files     : $files"
   if command_exists tokei && command_exists jq; then
-    languages=$(tokei "$ROOT" --output json | jq -r '.languages | to_entries[] | "\(.key): \(.value.code) LOC"')
-    out "🗣️ Languages :"; out "$languages"
-    loc_json=$(tokei "$ROOT" --output json)
+    # Run tokei, but ignore exit code in case it fails on some projects
+    loc_json=$(tokei "$ROOT" --output json 2>/dev/null || true)
+    if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
+      languages=$(echo "$loc_json" | jq -r '.languages | to_entries[] | "\(.key): \(.value.code) LOC"')
+      out "🗣️ Languages :"
+      out "$languages"
+    else
+      out "(tokei analysis failed or no languages found)"
+      loc_json="{}" # ensure loc_json is valid json for merge later
+    fi
   else
     out "(Install tokei & jq for LOC breakdown)"
   fi
@@ -59,34 +35,81 @@ cheatsheet() {
 }
 
 analyze() {
+  if [[ $files -gt 400 ]]; then DEPTH=2; fi
   heading "PROJECT STRUCTURE ANALYSIS (depth $DEPTH)"
-  if command_exists tree; then tree -L "$DEPTH" -C -I ".git" "$ROOT"; 
-  elif command_exists eza; then eza -T "$ROOT" --level "$DEPTH";
-  else find "$ROOT" -maxdepth "$DEPTH" -print;
+  if [[ -n "$JSON_OUT" ]]; then
+    if command_exists tree; then
+      tree -L "$DEPTH" -I ".git" --noreport --dirsfirst -J "$ROOT" | jq '.'
+    elif command_exists eza; then
+      eza -T "$ROOT" --level "$DEPTH" --no-quotes --no-permissions --no-user --no-time --no-filesize -J | jq '.'
+    else
+      find "$ROOT" -maxdepth "$DEPTH" -print | jq -R -s 'split("\n") | .[1:]'
+    fi
+  else
+    if command_exists tree; then tree -L "$DEPTH" -C -I ".git" "$ROOT";
+    elif command_exists eza; then eza -T "$ROOT" --level "$DEPTH";
+    else find "$ROOT" -maxdepth "$DEPTH" -print;
+    fi
   fi
 }
 
 health() {
   heading "PROJECT HEALTH CHECK"
   local manifests=(package.json pnpm-lock.yaml yarn.lock requirements.txt Pipfile composer.json pubspec.yaml Cargo.toml)
+  local found_manifests=""
   for m in "${manifests[@]}"; do
-    for f in $(find "$ROOT" -name "$m" 2>/dev/null); do
+    while IFS= read -r f; do
+      found_manifests+="$f "
+    done < <(find "$ROOT" -name "$m" -type f 2>/dev/null)
+  done
+
+  if [[ -n "$JSON_OUT" ]]; then
+    echo "$found_manifests" | jq -R -s 'split(" ") | .[:-1]'
+  else
+    for f in $found_manifests; do
       out "\n📦 $f"; head -20 "$f";
     done
-  done
+  fi
 }
 
 cross_platform() {
   heading "CROSS‑PLATFORM DEPENDENCY MAPPING"
   if command_exists rg; then SCAN="rg -n"; else SCAN="grep -Rni"; fi
-  $SCAN --no-heading -e "firebase[\w\-]*[\s:'\"]+\d+\.\d+\.\d+" "$ROOT" || true
+
+  if [[ -n "$JSON_OUT" ]]; then
+    $SCAN --no-heading -e "firebase[\w\-]*[\s:'\"]+\d+\.\d+\.\d+" "$ROOT" | jq -R -s 'split("\n") | .[:-1] | map(split(":")) | map({"file": .[0], "line": .[1], "match": .[2:] | join(":")})'
+  else
+    $SCAN --no-heading -e "firebase[\w\-]*[\s:'\"]+\d+\.\d+\.\d+" "$ROOT" || true
+  fi
+}
+
+bench() {
+  heading "BENCHMARKING"
+  local bench_file="$ROOT/.bench.yml"
+  if [[ -f "$bench_file" ]]; then
+    if command_exists hyperfine; then
+      if [[ -n "$JSON_OUT" ]]; then
+        hyperfine --export-json - "$bench_file" | jq '.'
+      else
+        hyperfine --yaml "$bench_file"
+      fi
+    else
+      out "(Install hyperfine to run benchmarks)"
+    fi
+  else
+    out "(No .bench.yml file found)"
+  fi
 }
 
 case "$MODE" in
   cheatsheet)  cheatsheet ;;
-  analyze)     analyze ;; 
+  analyze)     analyze ;;
   health)      health ;;
   cross-platform) cross_platform ;;
+  bench)       bench ;;
+  version)
+    echo "snapctx-sh 0.2.0"
+    ;;
   help|*)
     cat <<EOF
 Usage: $(basename "$0") [mode] [options] [root]

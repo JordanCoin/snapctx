@@ -18,7 +18,7 @@ a compact **ctx.json** that captures:
 
 ## Quick start
 ```bash
-bash curl -sSL https://raw.githubusercontent.com/JordanCoin/snapctx-sh/main/snapctx.sh -o snapctx
+bash curl -sSL https://raw.githubusercontent.com/JordanCoin/snapctx-sh/main/universal-toolkit.sh -o /usr/local/bin/snapctx && chmod +x /usr/local/bin/snapctx
 
 # from any git repo ↓
 ./snapctx cheatsheet        # colourised human output
