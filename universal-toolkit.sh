@@ -12,26 +12,37 @@ source "$(dirname "$0")/lib/json.sh"
 
 ## ── sub‑commands ──────────────────────────────────────────────────────────
 cheatsheet() {
-  heading "PROJECT CHEATSHEET"
   local files lines languages loc_json="{}"
   files=$( (cd "$ROOT" && rg --files) | wc -l)
-  out "📁 Directory : $ROOT"
-  out "📄 Files     : $files"
-  if command_exists tokei && command_exists jq; then
-    # Run tokei, but ignore exit code in case it fails on some projects
-    loc_json=$(tokei "$ROOT" --output json 2>/dev/null || true)
-    if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
-      languages=$(echo "$loc_json" | jq -r '.languages | to_entries[] | "\(.key): \(.value.code) LOC"')
-      out "🗣️ Languages :"
-      out "$languages"
-    else
-      out "(tokei analysis failed or no languages found)"
-      loc_json="{}" # ensure loc_json is valid json for merge later
+
+  if [[ -n "$JSON_OUT" ]]; then
+    local json_output="{}"
+    json_output=$(merge_json <(json_kv "files" "$files") <(echo "$json_output"))
+
+    if command_exists tokei && command_exists jq; then
+      loc_json=$(tokei "$ROOT" --output json 2>/dev/null || true)
+      if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
+        json_output=$(merge_json <(echo "$json_output") <(echo "$loc_json"))
+      fi
     fi
+    echo "$json_output"
   else
-    out "(Install tokei & jq for LOC breakdown)"
+    heading "PROJECT CHEATSHEET"
+    out "📁 Directory : $ROOT"
+    out "📄 Files     : $files"
+    if command_exists tokei && command_exists jq; then
+      loc_json=$(tokei "$ROOT" --output json 2>/dev/null || true)
+      if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
+        languages=$(echo "$loc_json" | jq -r '.languages | to_entries[] | "\(.key): \(.value.code) LOC"')
+        out "🗣️ Languages :"
+        out "$languages"
+      else
+        out "(tokei analysis failed or no languages found)"
+      fi
+    else
+      out "(Install tokei & jq for LOC breakdown)"
+    fi
   fi
-  [[ -n "$JSON_OUT" ]] && merge_json <(json_kv "files" "$files") <(echo "$loc_json")
 }
 
 analyze() {
