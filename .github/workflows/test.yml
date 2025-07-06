@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Install bats-core
-        run: sudo apt-get install -y bats
+      - name: Install bats-core and dependencies
+        run: sudo apt-get update && sudo apt-get install -y bats ripgrep tokei
       - name: Make script executable
         run: chmod +x universal-toolkit.sh
       - name: Run tests

@@ -16,7 +16,8 @@ source "$(dirname "$0")/lib/json.sh"
 
 ## ── sub‑commands ──────────────────────────────────────────────────────────
 cheatsheet() {
-  local files lines languages loc_json="{}"
+  local files # shellcheck disable=SC2034
+  local languages loc_json="{}"
   files=$( (cd "$ROOT" && rg --files) | wc -l)
 
   if [[ -n "$JSON_OUT" ]]; then

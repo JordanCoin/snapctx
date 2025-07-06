@@ -15,4 +15,3 @@ jobs:
         uses: ludeeus/action-shellcheck@master
         with:
           scandir: './'
-          options: '-x'
