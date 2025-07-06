@@ -16,6 +16,7 @@ a compact **ctx.json** that captures:
 > Drag `ctx.json` into Claude/Copilot/Cursor to give the model instant context.
 
 ## Quick start
+```bash
 bash curl -sSL https://raw.githubusercontent.com/your-org/snapctx/main/snapctx.sh -o snapctx \ && chmod +x snapctx
 
 # from any git repo ↓
