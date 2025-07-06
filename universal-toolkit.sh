@@ -7,7 +7,9 @@
 set -euo pipefail
 shopt -s globstar nullglob 2>/dev/null || true
 
-# shellcheck disable=SC1091
+ROOT="${ROOT:-$PWD}"
+
+# shellcheck source=./lib/colors.sh
 source "$(dirname "$0")/lib/colors.sh"
 # shellcheck disable=SC1091
 source "$(dirname "$0")/lib/json.sh"
