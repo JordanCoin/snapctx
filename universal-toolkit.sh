@@ -114,6 +114,24 @@ bench() {
   fi
 }
 
+MODE=""
+JSON_OUT=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    cheatsheet|analyze|health|cross-platform|bench|version|help)
+      MODE="$1"
+      shift
+      ;;
+    -j|--json)
+      JSON_OUT=1
+      shift
+      ;;
+    *)
+      shift
+      ;;
+  esac
+done
+
 case "$MODE" in
   cheatsheet)  cheatsheet ;;
   analyze)     analyze ;;
