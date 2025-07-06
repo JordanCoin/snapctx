@@ -1,7 +1,8 @@
-# snapctx 🔎✨
+# snapctx-sh 🔎✨
 _A universal, zero-config “project radar” you can drop into any folder._
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](#license)
+![ShellCheck](https://github.com/JordanCoin/snapctx-sh/actions/workflows/lint.yml/badge.svg)
 
 ## What it does
 `snapctx` runs a four-stage scan (`cheatsheet → analyze → health → cross-platform`) and emits
@@ -17,7 +18,7 @@ a compact **ctx.json** that captures:
 
 ## Quick start
 ```bash
-bash curl -sSL https://raw.githubusercontent.com/your-org/snapctx/main/snapctx.sh -o snapctx \ && chmod +x snapctx
+bash curl -sSL https://raw.githubusercontent.com/JordanCoin/snapctx-sh/main/snapctx.sh -o snapctx
 
 # from any git repo ↓
 ./snapctx cheatsheet        # colourised human output
