@@ -5,6 +5,19 @@ set -euo pipefail
 # shellcheck source=../lib/log.sh
 source "$(dirname "$0")/../lib/log.sh"
 
+# Ensure ripgrep is installed for tests
+if ! command -v rg &>/dev/null; then
+  log_warning "ripgrep not found. Attempting to install..."
+  if command -v apt-get &>/dev/null; then
+    sudo apt-get update && sudo apt-get install -y ripgrep
+  elif command -v brew &>/dev/null; then
+    brew install ripgrep
+  else
+    log_error "Cannot install ripgrep. Please install it manually to run tests."
+    exit 1
+  fi
+fi
+
 log_header "TOOLKIT SELF-VERIFICATION"
 
 TEST_COMMANDS=(

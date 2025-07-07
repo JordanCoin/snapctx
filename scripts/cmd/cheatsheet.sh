@@ -35,17 +35,19 @@ PROJECT_ROOT="${PROJECT_ROOT:-.}" # Fallback if not set
 
 if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
   # JSON output logic
-  local files=$( (cd "$PROJECT_ROOT" && rg --files) | wc -l)
-  local loc_json="{}"
-  if command_exists tokei && command_exists jq; then
-    loc_json=$(tokei "$PROJECT_ROOT" --output json 2>/dev/null || true)
-  fi
+  files=$( (cd "$PROJECT_ROOT" && rg --files) | wc -l)
 
-  local json_output="{}"
-  json_output=$(merge_json <(json_kv "files" "$files") <(echo "$json_output"))
-  if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
-    json_output=$(merge_json <(echo "$json_output") <(echo "$loc_json"))
-  fi
+  if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
+    local loc_json="{}"
+    if command_exists tokei && command_exists jq; then
+      loc_json=$(tokei "$PROJECT_ROOT" --output json 2>/dev/null || true)
+    fi
+
+    local json_output="{}"
+    json_output=$(merge_json <(json_kv "files" "$files") <(echo "$json_output"))
+    if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
+      json_output=$(merge_json <(echo "$json_output") <(echo "$loc_json"))
+    fi
 
   # Add other cheatsheet data to json_output
   json_output=$(merge_json <(json_kv "project_name" "Current Project") <(echo "$json_output"))
