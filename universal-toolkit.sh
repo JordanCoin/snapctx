@@ -1,162 +1,109 @@
 #!/usr/bin/env bash
-# universal-toolkit.sh — drop‑in project reconnaissance script
-# Works in **any** folder; zero project‑specific paths.
-# Dependencies (auto‑detected, script still runs with fallbacks):
-#   jq, tokei, hyperfine, tree (or eza), ripgrep (or grep), fd (or find)
+# universal-toolkit.sh — drop-in project reconnaissance script
+# Dispatches to commands in scripts/cmd/*.sh
 # -----------------------------------------------------------------------------
 set -euo pipefail
-shopt -s globstar nullglob 2>/dev/null || true
 
-ROOT="${ROOT:-$PWD}"
+# --- Configuration and Environment -------------------------------------------
 
-# shellcheck source=./lib/colors.sh
-source "$(dirname "$0")/lib/colors.sh"
-# shellcheck disable=SC1091
-source "$(dirname "$0")/lib/json.sh"
-
-## ── sub‑commands ──────────────────────────────────────────────────────────
-cheatsheet() {
-  # shellcheck disable=SC2034 # files is used in a subshell
-  local files
-  local languages loc_json="{}"
-  files=$( (cd "$ROOT" && rg --files) | wc -l)
-
-  if [[ -n "$JSON_OUT" ]]; then
-    local json_output="{}"
-    json_output=$(merge_json <(json_kv "files" "$files") <(echo "$json_output"))
-
-    if command_exists tokei && command_exists jq; then
-      loc_json=$(tokei "$ROOT" --output json 2>/dev/null || true)
-      if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
-        json_output=$(merge_json <(echo "$json_output") <(echo "$loc_json"))
-      fi
-    fi
-    echo "$json_output"
-  else
-    heading "PROJECT CHEATSHEET"
-    out "📁 Directory : $ROOT"
-    out "📄 Files     : $files"
-    if command_exists tokei && command_exists jq; then
-      loc_json=$(tokei "$ROOT" --output json 2>/dev/null || true)
-      if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
-        languages=$(echo "$loc_json" | jq -r '.languages | to_entries[] | "\(.key): \(.value.code) LOC"')
-        out "🗣️ Languages :"
-        out "$languages"
-      else
-        out "(tokei analysis failed or no languages found)"
-      fi
-    else
-      out "(Install tokei & jq for LOC breakdown)"
-    fi
+# Security validations for environment variables
+PROJECT_ROOT_OVERRIDE="${PROJECT_ROOT:-}"
+if [[ -n "$PROJECT_ROOT_OVERRIDE" ]]; then
+  # Security: Validate PROJECT_ROOT to prevent directory traversal
+  if [[ "$PROJECT_ROOT_OVERRIDE" =~ \.\./|^/ ]]; then
+    echo "❌ Security: PROJECT_ROOT cannot contain '..' or start with '/'" >&2
+    echo "❌ Rejecting potentially malicious path: $PROJECT_ROOT_OVERRIDE" >&2
+    exit 1
   fi
-}
-
-analyze() {
-  if [[ $files -gt 400 ]]; then DEPTH=2; fi
-  heading "PROJECT STRUCTURE ANALYSIS (depth $DEPTH)"
-  if [[ -n "$JSON_OUT" ]]; then
-    if command_exists tree; then
-      tree -L "$DEPTH" -I ".git" --noreport --dirsfirst -J "$ROOT" | jq '.'
-    elif command_exists eza; then
-      eza -T "$ROOT" --level "$DEPTH" --no-quotes --no-permissions --no-user --no-time --no-filesize -J | jq '.'
-    else
-      find "$ROOT" -maxdepth "$DEPTH" -print | jq -R -s 'split("\n") | .[1:]'
-    fi
-  else
-    if command_exists tree; then tree -L "$DEPTH" -C -I ".git" "$ROOT";
-    elif command_exists eza; then eza -T "$ROOT" --level "$DEPTH";
-    else find "$ROOT" -maxdepth "$DEPTH" -print;
-    fi
+  # Additional check: ensure it's within current directory tree
+  if [[ ! "$PROJECT_ROOT_OVERRIDE" =~ ^\.?$ ]] && [[ ! "$PROJECT_ROOT_OVERRIDE" =~ ^\./ ]]; then
+    echo "❌ Security: PROJECT_ROOT must be current directory (.) or subdirectory (./path)" >&2
+    echo "❌ Rejecting path: $PROJECT_ROOT_OVERRIDE" >&2
+    exit 1
   fi
-}
+fi
 
-health() {
-  heading "PROJECT HEALTH CHECK"
-  local manifests=(package.json pnpm-lock.yaml yarn.lock requirements.txt Pipfile composer.json pubspec.yaml Cargo.toml)
-  local found_manifests=""
-  for m in "${manifests[@]}"; do
-    while IFS= read -r f; do
-      found_manifests+="$f "
-    done < <(find "$ROOT" -name "$m" -type f 2>/dev/null)
+# Security: Validate JSON_OUTPUT to prevent injection
+if [[ -n "${JSON_OUTPUT:-}" ]] && [[ "$JSON_OUTPUT" != "true" ]] && [[ "$JSON_OUTPUT" != "false" ]]; then
+  echo "❌ Security: JSON_OUTPUT must be 'true' or 'false'" >&2
+  echo "❌ Rejecting potentially malicious value: $JSON_OUTPUT" >&2
+  exit 1
+fi
+
+export PROJECT_ROOT="${PROJECT_ROOT:-.}"
+
+# --- Library Sourcing --------------------------------------------------------
+
+# Source shared libraries relative to this script's location
+# shellcheck source=./scripts/lib/colors.sh
+source "$(dirname "$0")/scripts/lib/colors.sh"
+# shellcheck source=./scripts/lib/log.sh
+source "$(dirname "$0")/scripts/lib/log.sh"
+# shellcheck source=./scripts/lib/util.sh
+source "$(dirname "$0")/scripts/lib/util.sh"
+
+# --- Argument Parsing and Dispatch -------------------------------------------
+
+show_help() {
+  log_header "Universal Toolkit"
+  log_info "Usage: $(basename "$0") <command> [options]"
+  log_info ""
+  log_info "Available commands:"
+  for cmd_script in scripts/cmd/*.sh; do
+    cmd_name=$(basename "$cmd_script" .sh)
+    printf "  %-20s %s
+" "$cmd_name" "$(grep -m 1 '^# scripts/cmd/' "$cmd_script" | sed 's/^# scripts.cmd....//')"
   done
-
-  if [[ -n "$JSON_OUT" ]]; then
-    echo "$found_manifests" | jq -R -s 'split(" ") | .[:-1]'
-  else
-    for f in $found_manifests; do
-      out "\n📦 $f"; head -20 "$f";
-    done
-  fi
+  log_info ""
+  log_info "Global options:"
+  log_info "  -j, --json    Output in JSON format"
+  log_info "  -h, --help    Show this help message"
 }
 
-cross_platform() {
-  heading "CROSS‑PLATFORM DEPENDENCY MAPPING"
-  if command_exists rg; then SCAN="rg -n"; else SCAN="grep -Rni"; fi
+# Handle global options and command
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" || "${1:-}" == "help" ]]; then
+  show_help
+  exit 0
+fi
 
-  if [[ -n "$JSON_OUT" ]]; then
-    $SCAN --no-heading -e "firebase[\w\-]*[\s:'\"]+\d+\.\d+\.\d+" "$ROOT" | jq -R -s 'split("\n") | .[:-1] | map(split(":")) | map({"file": .[0], "line": .[1], "match": .[2:] | join(":")})'
+if [[ "${1:-}" == "--version" || "${1:-}" == "version" ]]; then
+  echo "snapctx-sh 0.2.0"
+  exit 0
+fi
+
+COMMAND="${1:-cheatsheet}"
+shift || true # Shift even if no arguments
+
+JSON_OUTPUT="false"
+# Filter arguments and check for --json
+filtered_args=()
+for arg in "$@"; do
+  if [[ "$arg" == "-j" || "$arg" == "--json" ]]; then
+    JSON_OUTPUT="true"
   else
-    $SCAN --no-heading -e "firebase[\w\-]*[\s:'\"]+\d+\.\d+\.\d+" "$ROOT" || true
+    filtered_args+=("$arg")
   fi
-}
-
-bench() {
-  heading "BENCHMARKING"
-  local bench_file="$ROOT/.bench.yml"
-  if [[ -f "$bench_file" ]]; then
-    if command_exists hyperfine; then
-      if [[ -n "$JSON_OUT" ]]; then
-        hyperfine --export-json - "$bench_file" | jq '.'
-      else
-        hyperfine --yaml "$bench_file"
-      fi
-    else
-      out "(Install hyperfine to run benchmarks)"
-    fi
-  else
-    out "(No .bench.yml file found)"
-  fi
-}
-
-MODE=""
-JSON_OUT=""
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    cheatsheet|analyze|health|cross-platform|bench|version|help)
-      MODE="$1"
-      shift
-      ;;
-    -j|--json)
-      JSON_OUT=1
-      shift
-      ;;
-    *)
-      shift
-      ;;
-  esac
 done
+export JSON_OUTPUT
 
-case "$MODE" in
-  cheatsheet)  cheatsheet ;;
-  analyze)     analyze ;;
-  health)      health ;;
-  cross-platform) cross_platform ;;
-  bench)       bench ;;
-  version)
-    echo "snapctx-sh 0.2.0"
-    ;;
-  help|*)
-    cat <<EOF
-Usage: $(basename "$0") [mode] [options] [root]
-Modes:
-  cheatsheet           quick stats (default)
-  analyze              tree view
-  health               manifest previews
-  cross-platform       naive version drift scan
-Options:
-  -d, --depth N        tree depth (analyze mode)
-  -j, --json           machine‑readable JSON output (cheatsheet only)
-  -h, --help           show this help
-EOF
-  ;;
-esac
+# Use filtered arguments instead of original $@
+if [[ ${#filtered_args[@]} -gt 0 ]]; then
+  set -- "${filtered_args[@]}"
+else
+  set --
+fi
+
+CMD_SCRIPT="scripts/cmd/${COMMAND}.sh"
+
+if [[ ! -f "$CMD_SCRIPT" ]]; then
+  log_error "Unknown command: $COMMAND"
+  show_help
+  exit 1
+fi
+
+# --- Command Execution -------------------------------------------------------
+
+# Pass all remaining arguments to the command script
+# The command script will handle its own options
+# shellcheck source=/dev/null
+source "$CMD_SCRIPT" "$@"
