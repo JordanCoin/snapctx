@@ -14,7 +14,7 @@ for lib in colors json log util config; do
 done
 
 JSON_OUTPUT=false
-ARGS=()
+declare -a ARGS=()
 
 # --- global arg parsing ---
 while (($#)); do
