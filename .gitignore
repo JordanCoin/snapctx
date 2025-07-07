@@ -1,5 +1,6 @@
 # Ignore files from other projects
 dev-toolkit.sh
+scripts/universal-toolkit.sh
 
 # Common ignore patterns
 .DS_Store
