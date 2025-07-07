@@ -48,12 +48,12 @@ if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
   fi
 
   # Add other cheatsheet data to json_output
-  json_output=$(merge_json <(json_kv "project_name" "Social Work Test Prep Academy") <(echo "$json_output"))
-  json_output=$(merge_json <(json_kv "entrypoints" "$(jq -n --arg backend "${BACKEND_DIR}/src/index.ts" --arg frontend "${FRONTEND_DIR}/src/main.tsx" --arg ios "${IOS_DIR}/SWTPA/SWTPAApp.swift" '{"backend":$backend,"frontend":$frontend,"ios":$ios}')") <(echo "$json_output"))
-  json_output=$(merge_json <(json_kv "build_commands" "$(jq -n --arg backend "cd ${BACKEND_DIR} && npm run build" --arg frontend "cd ${FRONTEND_DIR} && npm run build" '{"backend":$backend,"frontend":$frontend}')") <(echo "$json_output"))
-  json_output=$(merge_json <(json_kv "test_commands" "$(jq -n --arg backend "cd ${BACKEND_DIR} && npm test" --arg frontend "cd ${FRONTEND_DIR} && npm test" '{"backend":$backend,"frontend":$frontend}')") <(echo "$json_output"))
-  json_output=$(merge_json <(json_kv "prod_url" "socialworktestprepacademy.com") <(echo "$json_output"))
-  json_output=$(merge_json <(json_kv "docs" "$(jq -n '["CLAUDE.md", "PRODUCT.md", "TECHNICAL.md"]')") <(echo "$json_output"))
+  json_output=$(merge_json <(json_kv "project_name" "Current Project") <(echo "$json_output"))
+  json_output=$(merge_json <(json_kv "entrypoints" "(Dynamically detected)") <(echo "$json_output"))
+  json_output=$(merge_json <(json_kv "build_commands" "(Project-specific)") <(echo "$json_output"))
+  json_output=$(merge_json <(json_kv "test_commands" "(Project-specific)") <(echo "$json_output"))
+  json_output=$(merge_json <(json_kv "prod_url" "(N/A)") <(echo "$json_output"))
+  json_output=$(merge_json <(json_kv "docs" "(Project-specific)") <(echo "$json_output"))
 
   echo "$json_output" | jq '.' # Pretty print final JSON
 else
@@ -76,11 +76,11 @@ else
     log_warning "(Install tokei & jq for LOC breakdown)"
   fi
 
-  log_info "• Project: Social Work Test Prep Academy (3 codebases)"
-  log_info "• Entrypoints: ${BACKEND_DIR}/src/index.ts, ${FRONTEND_DIR}/src/main.tsx, ${IOS_DIR}/SWTPA/SWTPAApp.swift"
-  log_info "• Build: cd ${BACKEND_DIR} && npm run build; cd ${FRONTEND_DIR} && npm run build"
-  log_info "• Test: cd ${BACKEND_DIR} && npm test; cd ${FRONTEND_DIR} && npm test"
-  log_info "• Deploy: firebase deploy --only functions (backend), npm run build (frontend)"
-  log_info "• Prod URL: socialworktestprepacademy.com"
-  log_info "• Docs: CLAUDE.md, PRODUCT.md, TECHNICAL.md"
+  log_info "• Project: Current Project"
+  log_info "• Entrypoints: (Dynamically detected)"
+  log_info "• Build: (Project-specific)"
+  log_info "• Test: (Project-specific)"
+  log_info "• Deploy: (Project-specific)"
+  log_info "• Prod URL: (N/A)"
+  log_info "• Docs: (Project-specific)"
 fi
