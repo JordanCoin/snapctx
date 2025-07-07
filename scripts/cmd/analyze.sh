@@ -2,17 +2,17 @@
 # scripts/cmd/analyze.sh - Project structure analysis
 set -euo pipefail
 
-# Source shared libraries relative to this script's location
+# Source shared libraries using robust BASH_SOURCE path
 # shellcheck source=../lib/colors.sh
-source "$(dirname "$0")/../lib/colors.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/colors.sh"
 # shellcheck source=../lib/json.sh
-source "$(dirname "$0")/../lib/json.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/json.sh"
 # shellcheck source=../lib/log.sh
-source "$(dirname "$0")/../lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/log.sh"
 # shellcheck source=../lib/util.sh
-source "$(dirname "$0")/../lib/util.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/util.sh"
 # shellcheck source=../lib/config.sh
-source "$(dirname "$0")/../lib/config.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/config.sh"
 
 # Default depth
 DEPTH=2
@@ -45,14 +45,14 @@ shift $((OPTIND -1))
 PROJECT_ROOT="${PROJECT_ROOT:-.}" # Fallback if not set
 
 # Calculate files for adaptive depth
-local files=$( (cd "$PROJECT_ROOT" && rg --files) | wc -l || echo 0)
+files=$( (cd "$PROJECT_ROOT" && find . -type f -not -path '*/.git/*' | wc -l) || echo 0)
 if [[ $files -gt 400 ]]; then
   DEPTH=2
 fi
 
 if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
   # JSON output logic
-  local tree_output=""
+  tree_output=""
   if command_exists tree; then
     tree_output=$(tree -L "$DEPTH" -I ".git" --noreport --dirsfirst -J "$PROJECT_ROOT" || true)
   elif command_exists eza; then

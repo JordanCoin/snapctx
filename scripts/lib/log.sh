@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 
-# shellcheck disable=SC2034 # These variables are exported for use in other scripts
-export RED='\033[0;31m'
-export GREEN='\033[0;32m'
-export YELLOW='\033[1;33m'
-export BLUE='\033[0;34m'
-export PURPLE='\033[0;35m'
-export CYAN='\033[0;36m'
-export NC='\033[0m' # No Color
+# Source the centralized color definitions using a robust path
+# shellcheck source=./colors.sh
+source "$(dirname "${BASH_SOURCE[0]}")/colors.sh"
 
 log_info() {
     echo -e "${BLUE}ℹ️  $1${NC}"

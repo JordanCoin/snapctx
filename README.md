@@ -18,23 +18,17 @@ a compact **ctx.json** that captures:
 
 ## Quick start
 ```bash
-bash curl -sSL https://raw.githubusercontent.com/JordanCoin/snapctx-sh/main/universal-toolkit.sh -o /usr/local/bin/snapctx && chmod +x /usr/local/bin/snapctx
+# Download the main script
+curl -sSL https://raw.githubusercontent.com/JordanCoin/snapctx-sh/main/universal-toolkit.sh -o /usr/local/bin/snapctx
+chmod +x /usr/local/bin/snapctx
 
 # from any git repo ↓
-./snapctx cheatsheet        # colourised human output
-./snapctx cheatsheet --json > /tmp/ctx.json   # machine-readable
+snapctx cheatsheet        # colourised human output
+snapctx cheatsheet --json > /tmp/ctx.json   # machine-readable
 
-# Sub-commands
-
-| Command          | Purpose                                                  |
-| ---------------- | -------------------------------------------------------- |
-| `cheatsheet`     | 3-second overview (files, languages, key paths)          |
-| `analyze`        | Full recursive tree & hot-spot language stats            |
-| `health`         | Checks for missing lockfiles, outdated deps, lint errors |
-| `cross-platform` | Finds version drift across multi-repo workspaces         |
-| `bench`          | (opt-in) run `hyperfine` suites defined in `.bench.yml`  |
-
-Run ./snapctx --help for flags like --json, --depth, --no-color.
+# Discover all commands
+snapctx --help
+```
 
 # Requirements
 The script auto-detects tools and falls back gracefully.

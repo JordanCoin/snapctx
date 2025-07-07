@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/cmd/health.sh - Project health check
+# scripts/cmd/cross-platform.sh - Naive version drift scan
 set -euo pipefail
 
 # Source shared libraries using robust BASH_SOURCE path
@@ -32,31 +32,18 @@ shift $((OPTIND -1))
 
 PROJECT_ROOT="${PROJECT_ROOT:-.}"
 
-health_check() {
-  local manifests=(package.json pnpm-lock.yaml yarn.lock requirements.txt Pipfile composer.json pubspec.yaml Cargo.toml)
-  local found_manifests=()
-  for m in "${manifests[@]}"; do
-    while IFS= read -r f; do
-      found_manifests+=("$f")
-    done < <(find "$PROJECT_ROOT" -name "$m" -type f 2>/dev/null)
-  done
-
-  if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
-    if [[ ${#found_manifests[@]} -gt 0 ]]; then
-      printf '%s\n' "${found_manifests[@]}" | jq -R -s 'split("\n") | .[:-1]'
-    else
-      echo '[]'
-    fi
+if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
+  SCAN_CMD=""
+  if command_exists rg; then SCAN_CMD="rg -n"; else SCAN_CMD="grep -Rni"; fi
+  result=$($SCAN_CMD --no-heading -e "firebase[\w\-]*[\s:'\"]+\d+\.\d+\.\d+" "$PROJECT_ROOT" 2>/dev/null || true)
+  if [[ -n "$result" ]]; then
+    echo "$result" | jq -R -s 'split("\n") | .[:-1] | map(split(":")) | map({"file": .[0], "line": .[1], "match": .[2:] | join(":")})'
   else
-    log_header "PROJECT HEALTH CHECK"
-    if [ ${#found_manifests[@]} -eq 0 ]; then
-      log_warning "No dependency manifests found."
-    else
-      for f in "${found_manifests[@]}"; do
-        log_info "\n📦 $f"; head -20 "$f";
-      done
-    fi
+    echo '[]'
   fi
-}
-
-health_check
+else
+  log_header "CROSS-PLATFORM DEPENDENCY MAPPING"
+  SCAN_CMD=""
+  if command_exists rg; then SCAN_CMD="rg -n"; else SCAN_CMD="grep -Rni"; fi
+  $SCAN_CMD --no-heading -e "firebase[\w\-]*[\s:'\"]+\d+\.\d+\.\d+" "$PROJECT_ROOT" || true
+fi

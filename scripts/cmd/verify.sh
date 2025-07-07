@@ -2,43 +2,58 @@
 # scripts/cmd/verify.sh - Self-test for the toolkit
 set -euo pipefail
 
+# Source libraries using a robust path
 # shellcheck source=../lib/log.sh
-source "$(dirname "$0")/../lib/log.sh"
+source "$(dirname "${BASH_SOURCE[0]}")/../lib/log.sh"
 
-# Ensure ripgrep is installed for tests
-if ! command -v rg &>/dev/null; then
-  log_warning "ripgrep not found. Attempting to install..."
-  if command -v apt-get &>/dev/null; then
-    sudo apt-get update && sudo apt-get install -y ripgrep
-  elif command -v brew &>/dev/null; then
-    brew install ripgrep
-  else
-    log_error "Cannot install ripgrep. Please install it manually to run tests."
-    exit 1
-  fi
-fi
+# The main script to test, located at the project root
+SNAPCTX_CMD="$(dirname "${BASH_SOURCE[0]}")/../../universal-toolkit.sh"
 
 log_header "TOOLKIT SELF-VERIFICATION"
 
-TEST_COMMANDS=(
+# Test cases: command and arguments
+TEST_CASES=(
   "cheatsheet"
-  "-j cheatsheet"
-  "--help"
+  "cheatsheet --json"
+  "analyze"
+  "analyze --json"
+  "health"
+  "health --json"
+  "cross-platform"
+  "cross-platform --json"
+  "help"
+  "version"
 )
 
 ALL_PASS=true
 
-for cmd in "${TEST_COMMANDS[@]}"; do
-  log_info "Running: ./scripts/universal-toolkit.sh $cmd"
-  if PROJECT_ROOT="$PWD" JSON_OUTPUT="false" "$(dirname "$0")/../universal-toolkit.sh" $cmd > /dev/null 2> cmd_stderr.log; then
-    log_success "  PASS: $cmd"
+# Temporary log file for stderr
+STDERR_LOG=$(mktemp)
+# Cleanup trap to remove the temp file on exit
+trap 'rm -f "$STDERR_LOG"' EXIT
+
+# Change to project root to run tests
+pushd "$(dirname "${BASH_SOURCE[0]}")/../../" > /dev/null
+
+for args in "${TEST_CASES[@]}"; do
+  log_info "Running: $SNAPCTX_CMD $args"
+  # Pass the arguments exactly as they are in the TEST_CASES array
+  # Note: we use "bash" to run the script to ensure it works in various environments
+  if bash "$SNAPCTX_CMD" $args > /dev/null 2> "$STDERR_LOG"; then
+    log_success "  PASS: $args"
   else
-    log_error "  FAIL: $cmd"
-    log_error "    Stderr: $(cat cmd_stderr.log)"
+    log_error "  FAIL: $args"
+    if [[ -s "$STDERR_LOG" ]]; then
+      log_error "    Stderr: $(cat "$STDERR_LOG")"
+    else
+      log_error "    Stderr: (empty)"
+    fi
     ALL_PASS=false
   fi
-  rm -f cmd_stderr.log
 done
+
+# Return to the original directory
+popd > /dev/null
 
 if $ALL_PASS; then
   log_success "All toolkit self-tests passed!"
