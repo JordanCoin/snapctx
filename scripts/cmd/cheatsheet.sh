@@ -37,12 +37,12 @@ if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
   # JSON output logic
   files=$( (cd "$PROJECT_ROOT" && rg --files) | wc -l)
 
-  local loc_json="{}"
+  loc_json="{}"
   if command_exists tokei && command_exists jq; then
     loc_json=$(tokei "$PROJECT_ROOT" --output json 2>/dev/null || true)
   fi
 
-  local json_output="{}"
+  json_output="{}"
   json_output=$(merge_json <(json_kv "files" "$files") <(echo "$json_output"))
   if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
     json_output=$(merge_json <(echo "$json_output") <(echo "$loc_json"))
@@ -60,14 +60,14 @@ if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
 else
   # Human-readable output logic
   log_header "SWTPA PROJECT CHEATSHEET"
-  local files=$( (cd "$PROJECT_ROOT" && rg --files) | wc -l)
+  files=$( (cd "$PROJECT_ROOT" && rg --files) | wc -l)
   log_info "📁 Directory : $PROJECT_ROOT"
   log_info "📄 Files     : $files"
 
   if command_exists tokei && command_exists jq; then
-    local loc_json=$(tokei "$PROJECT_ROOT" --output json 2>/dev/null || true)
+    loc_json=$(tokei "$PROJECT_ROOT" --output json 2>/dev/null || true)
     if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
-      local languages=$(echo "$loc_json" | jq -r '.languages | to_entries[] | "\(.key): \(.value.code) LOC"')
+      languages=$(echo "$loc_json" | jq -r '.languages | to_entries[] | "\(.key): \(.value.code) LOC"')
       log_info "🗣️ Languages :"
       echo "$languages" # Use echo directly for multi-line output
     else
