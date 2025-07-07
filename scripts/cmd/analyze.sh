@@ -22,6 +22,12 @@ while getopts ":d:h" opt; do
   case $opt in
     d)
       DEPTH="$OPTARG"
+      # Security: Validate depth parameter to prevent DoS
+      if ! [[ "$DEPTH" =~ ^[0-9]+$ ]] || [[ "$DEPTH" -lt 1 ]] || [[ "$DEPTH" -gt 20 ]]; then
+        log_error "Security: Depth must be a number between 1-20"
+        log_error "Rejecting potentially malicious depth: $DEPTH"
+        exit 1
+      fi
       ;;
     h)
       log_info "Usage: $(basename "$0") [-d <depth>] [-h]"

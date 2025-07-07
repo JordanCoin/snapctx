@@ -6,7 +6,30 @@ set -euo pipefail
 
 # --- Configuration and Environment -------------------------------------------
 
-# Set PROJECT_ROOT to relative path if not already defined
+# Security validations for environment variables
+PROJECT_ROOT_OVERRIDE="${PROJECT_ROOT:-}"
+if [[ -n "$PROJECT_ROOT_OVERRIDE" ]]; then
+  # Security: Validate PROJECT_ROOT to prevent directory traversal
+  if [[ "$PROJECT_ROOT_OVERRIDE" =~ \.\./|^/ ]]; then
+    echo "❌ Security: PROJECT_ROOT cannot contain '..' or start with '/'" >&2
+    echo "❌ Rejecting potentially malicious path: $PROJECT_ROOT_OVERRIDE" >&2
+    exit 1
+  fi
+  # Additional check: ensure it's within current directory tree
+  if [[ ! "$PROJECT_ROOT_OVERRIDE" =~ ^\.?$ ]] && [[ ! "$PROJECT_ROOT_OVERRIDE" =~ ^\./ ]]; then
+    echo "❌ Security: PROJECT_ROOT must be current directory (.) or subdirectory (./path)" >&2
+    echo "❌ Rejecting path: $PROJECT_ROOT_OVERRIDE" >&2
+    exit 1
+  fi
+fi
+
+# Security: Validate JSON_OUTPUT to prevent injection
+if [[ -n "${JSON_OUTPUT:-}" ]] && [[ "$JSON_OUTPUT" != "true" ]] && [[ "$JSON_OUTPUT" != "false" ]]; then
+  echo "❌ Security: JSON_OUTPUT must be 'true' or 'false'" >&2
+  echo "❌ Rejecting potentially malicious value: $JSON_OUTPUT" >&2
+  exit 1
+fi
+
 export PROJECT_ROOT="${PROJECT_ROOT:-.}"
 
 # --- Library Sourcing --------------------------------------------------------
