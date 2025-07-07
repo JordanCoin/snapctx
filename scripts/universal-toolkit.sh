@@ -14,30 +14,24 @@ for lib in colors json log util config; do
 done
 
 JSON_OUTPUT=false
-declare -a ARGS=()
+COMMAND=""
 
-# --- global arg parsing ---
-while (($#)); do
-  case "$1" in
-    --json|-j)
-      JSON_OUTPUT=true
-      ;;
-    --help|-h)
-      COMMAND=help
-      break
-      ;;
-    -*)
-      ARGS+=("$1") # forward unknown flags
-      ;;
-    *)
-      COMMAND="$1"
-      shift
-      ARGS+=("$@") # Capture all remaining args for the subcommand
-      break
-      ;;
+# --- global arg parsing with getopts ---
+while getopts ":jh" opt; do
+  case "$opt" in
+    j) JSON_OUTPUT=true ;;
+    h) COMMAND="help";; # Set command to help if -h is present
+    \?) log_error "Invalid option: -$OPTARG"; exit 1 ;;
+    :) log_error "Option -$OPTARG requires an argument."; exit 1 ;;
   esac
-  shift
 done
+shift $((OPTIND -1)) # Shift past the global options
+
+# The first non-option argument is the command
+if [[ -n "$1" ]]; then
+  COMMAND="$1"
+  shift # Shift past the command
+fi
 
 export PROJECT_ROOT="${PROJECT_ROOT:-$PWD}"
 export JSON_OUTPUT
@@ -75,7 +69,7 @@ case "${COMMAND:-help}" in
       log_info "  branch-impact Branch impact analysis"
       ;;
   *)
-      # exec the real command
-      exec "${DIR}/cmd/${COMMAND}.sh" "${ARGS[@]}"
+      # exec the real command, passing all remaining arguments
+      exec "${DIR}/cmd/${COMMAND}.sh" "$@"
       ;;
 esac
