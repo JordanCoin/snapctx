@@ -17,12 +17,14 @@ ALL_PASS=true
 
 for cmd in "${TEST_COMMANDS[@]}"; do
   log_info "Running: ./scripts/universal-toolkit.sh $cmd"
-  if PROJECT_ROOT="$PWD" JSON_OUTPUT="false" "$(dirname "$0")/../universal-toolkit.sh" $cmd > /dev/null 2>&1; then
+  if PROJECT_ROOT="$PWD" JSON_OUTPUT="false" "$(dirname "$0")/../universal-toolkit.sh" $cmd > /dev/null 2> cmd_stderr.log; then
     log_success "  PASS: $cmd"
   else
     log_error "  FAIL: $cmd"
+    log_error "    Stderr: $(cat cmd_stderr.log)"
     ALL_PASS=false
   fi
+  rm -f cmd_stderr.log
 done
 
 if $ALL_PASS; then
