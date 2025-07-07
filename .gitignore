@@ -1,0 +1,20 @@
+# Ignore files from other projects
+dev-toolkit.sh
+
+# Common ignore patterns
+.DS_Store
+*.tmp
+*.log
+.env
+.env.local
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+build/
+dist/
+*.tar.gz 
