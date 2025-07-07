@@ -6,8 +6,8 @@ set -euo pipefail
 
 # --- Configuration and Environment -------------------------------------------
 
-# Set PROJECT_ROOT to the script's directory if not already defined
-export PROJECT_ROOT="${PROJECT_ROOT:-$PWD}"
+# Set PROJECT_ROOT to relative path if not already defined
+export PROJECT_ROOT="${PROJECT_ROOT:-.}"
 
 # --- Library Sourcing --------------------------------------------------------
 

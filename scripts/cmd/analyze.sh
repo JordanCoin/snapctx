@@ -64,7 +64,8 @@ if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
 else
   # Human-readable output logic
   log_header "PROJECT STRUCTURE ANALYSIS (depth $DEPTH)"
-  log_info "📁 Analyzing directory: $PROJECT_ROOT"
+  project_name=$(basename "$(pwd)")
+  log_info "📁 Analyzing project: $project_name"
   if command_exists tree; then
     tree -L "$DEPTH" -C -I ".git" "$PROJECT_ROOT"
   elif command_exists eza; then

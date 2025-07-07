@@ -38,6 +38,11 @@ if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
   loc_json="{}"
   if command_exists tokei && command_exists jq; then
     loc_json=$(tokei "$PROJECT_ROOT" --output json 2>/dev/null || true)
+    # Convert absolute paths to relative paths
+    if [[ -n "$loc_json" && "$loc_json" != "{}" ]]; then
+      current_dir=$(pwd)
+      loc_json=$(echo "$loc_json" | jq --arg pwd "$current_dir/" 'walk(if type == "object" and has("name") then .name |= gsub($pwd; "./") else . end)')
+    fi
   fi
 
   json_output=$(json_kv "files" "$files")
@@ -49,7 +54,8 @@ if [[ "${JSON_OUTPUT:-false}" == "true" ]]; then
 else
   log_header "PROJECT CHEATSHEET"
   files=$( (cd "$PROJECT_ROOT" && find . -type f -not -path '*/.git/*' | wc -l) || echo 0)
-  log_info "📁 Directory : $PROJECT_ROOT"
+  project_name=$(basename "$(pwd)")
+  log_info "📁 Project   : $project_name"
   log_info "📄 Files     : $files"
 
   if command_exists tokei && command_exists jq; then
